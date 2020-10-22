@@ -6,14 +6,13 @@ from pyspark.sql import functions as sf
 
 #Function to transform the parquet file of Tickets
 def tickets_transformation(df_t):
-    df_t = df_t_t
 
     # let's filter just for those tickets with 2 coupons
     coupons = [2]
-    df_t_t = df_t_t.filter(sf.col('Coupons').isin(coupons))
+    df_t = df_t.filter(sf.col('Coupons').isin(coupons))
 
     # now, we are going to calculate the fare
-    df_t_t = df_t_t.withColumn('Fare', (sf.col('FarePerMile') * sf.col('Distance')))
+    df_t = df_t.withColumn('Fare', (sf.col('FarePerMile') * sf.col('Distance')))
 
     # drop all not necessary columns
     cols_to_delete = ['Coupons', 'Year', 'Quarter', 'Origin', 'OriginAirportID', 'OriginAirportSeqID',
@@ -21,27 +20,26 @@ def tickets_transformation(df_t):
                        'OriginWac', 'RoundTrip', 'OnLine', 'DollarCred', 'FarePerMile', 'RPCarrier', 'Passengers',
                        'ItinFare', 'BulkFare', 'Distance', 'DistanceGroup', 'MilesFlown', 'ItinGeoType', '_c25']
     for col in cols_to_delete:
-        df_t_t = df_t_t.drop(col)
+        df_t = df_t.drop(col)
     print('tickets transformed')
-    return df_t_t
+    return df_t
 
 
 def coupons_transformation(df_c):
-    df_c = df_c_t
 
     # let's filter just for those tickets with 2 coupons
     coupons = [2]
-    df_c_t = df_c_t.filter(sf.col('Coupons').isin(coupons))
+    df_c = df_c.filter(sf.col('Coupons').isin(coupons))
 
     # only itineraries where selling, operating and reporting are made by the same carrier
-    df_c_t = df_c_t.withColumn('carrier_itin_0', (sf.col('TkCarrier') == sf.col('OpCarrier')))
-    df_c_t = df_c_t.withColumn('carrier_itin_1', (sf.col('OpCarrier') == sf.col('RPCarrier')))
+    df_c = df_c.withColumn('carrier_itin_0', (sf.col('TkCarrier') == sf.col('OpCarrier')))
+    df_c = df_c.withColumn('carrier_itin_1', (sf.col('OpCarrier') == sf.col('RPCarrier')))
 
-    df_c_t = df_c_t.where('carrier_itin_0!=false')
-    df_c_t = df_c_t.where('carrier_itin_1!=false')
+    df_c = df_c.where('carrier_itin_0!=false')
+    df_c = df_c.where('carrier_itin_1!=false')
 
     # itinerary
-    df_c_t = df_c_t.withColumn('Itinerary', sf.concat(sf.col('Origin'), sf.lit('_'), sf.col('Dest')))
+    df_c = df_c.withColumn('Itinerary', sf.concat(sf.col('Origin'), sf.lit('_'), sf.col('Dest')))
 
     # drop all not necessary columns
     cols_to_delete = ['MktID', 'SeqNum', 'OriginAirportSeqID', 'OriginCityMarketID', 'OriginCountry', 'OriginStateFips',
@@ -49,18 +47,25 @@ def coupons_transformation(df_c):
                       'DestWac', 'Break', 'CouponType', 'TkCarrier', 'OpCarrier', 'Gateway', 'ItinGeoType', '_c36',
                       'carrier_itin_0', 'carrier_itin_1']
     for col in cols_to_delete:
-        df_c_t = df_c_t.drop(col)
+        df_c = df_c.drop(col)
     print('Coupons transformed!')
-    return df_c_t
+    return df_c
 
 
-def join_coupons_tickets(df_c_t, df_t_t):
+def join_coupons_tickets(spark, df_c, df_t):
     spark.conf.set("spark.sql.crossJoin.enabled", True)
-    df = df_c_t.join(df_t_t, on=['ItinID'], how='left_outer')
+    df = df_c.join(df_t, on=['ItinID'], how='left_outer')
 
     df = df.dropDuplicates(['ItinID', 'Distance'])
     df = df.dropDuplicates(['ItinID'])
+    df = df.drop('ItinID', 'Coupons', 'Origin', 'DestAirportID', 'OriginAirportID', 'OriginState', 'Dest',
+                 'DestCountry', 'DestState', 'DestStateName', 'Year')
+    df = df.withColumn("Passengers", df["Passengers"].cast("int"))
+    df = df.groupby(
+        ['itinerary', 'Quarter', 'RPCarrier', 'FareClass', 'Distance', 'DistanceGroup', 'CouponGeoType']).agg(
+        sf.sum('Passengers'), sf.mean('Fare'))
     print('Joined!')
+
 
     df = df.toPandas()
     df.to_csv('/home/juan/Downloads/definitive_1.csv')
