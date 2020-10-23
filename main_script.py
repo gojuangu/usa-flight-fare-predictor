@@ -28,6 +28,7 @@ def main(arguments):
 
 
 if __name__ == '__main__':
+    # print('Welcome to the USA Fare Flight predictor. Please')
     # origin = (input('Enter your origin airport code: '))
     # destination = (input('Enter your origin airport code: '))
     # title = f'Average plane ticket for a flight from {origin} to {destination} is:'
