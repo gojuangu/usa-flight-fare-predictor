@@ -1,42 +1,33 @@
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.preprocessing import KBinsDiscretizer
-from sklearn.preprocessing import RobustScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import MaxAbsScaler
-from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RandomizedSearchCV
 
-def data_partition():
-    planes = pd.read_csv('/home/juan/Downloads/definitive_1.csv')
+def data_partition(target_path_1):
+    planes = pd.read_csv(f'{target_path_1}/definitive_2.csv')
     planes, planes_predict = train_test_split(planes, test_size=0.2)
 
-    planes.to_csv('/home/juan/Downloads/planes_train.csv')
-    planes_predict.to_csv('/home/juan/Downloads/planes_predict.csv')
+    planes.to_csv(f'{target_path_1}/planes_train.csv')
+    planes_predict.to_csv(f'{target_path_1}/planes_predict.csv')
 
-    return dataframe
 
 #machine learning preprocessing
 
-def preprocessing(dataframe):
-    NUM_FEATS = ['Quarter', 'Distance', 'DistanceGroup', 'CouponGeoType', 'sum(Passengers)']
+def model(target_path_1):
+    NUM_FEATS = ['Quarter', 'Distance', 'DistanceGroup', 'CouponGeoType', 'passengers']
     CAT_FEATS = ['itinerary', 'RPCarrier', 'FareClass']
     FEATS = NUM_FEATS + CAT_FEATS
-    TARGET = 'avg(Fare)'
+    TARGET = 'avg_fare'
 
     numeric_transformer = \
         Pipeline(steps=[('imputer', SimpleImputer(strategy='mean')),
                         ('robustscaler', StandardScaler()),
-                        # ('poly', PolynomialFeatures()),
-                        # ('disc', KBinsDiscretizer())
                         ])
 
     categorical_transformer = \
@@ -48,8 +39,9 @@ def preprocessing(dataframe):
                                         ('cat', categorical_transformer, CAT_FEATS)
                                         ])
 
-def model():
+    planes = pd.read_csv(f'{target_path_1}/planes_train.csv')
     planes_train, planes_test = train_test_split(planes, test_size=0.2)
+    planes_predict = pd.read_csv(f'{target_path_1}planes_predict.csv')
 
     model = Pipeline(steps=[('preprocessor', preprocessor),
                             ('regressor', RandomForestRegressor(n_jobs=-1,
@@ -59,17 +51,29 @@ def model():
 
     model.fit(planes_train[FEATS], planes_train[TARGET])
 
-def model_checks():
-    y_test = model.predict(planes_test[FEATS])
-    y_train = model.predict(planes_train[FEATS])
+    # model optimizier
+    param_grid = {
+        'preprocessor__num__imputer__strategy': ['mean', 'median'],
+        'regressor__n_estimators': [16, 32, 64, 128, 256, 512],
+        'regressor__max_depth': [2, 4, 8, 16],
+    }
 
-    print(f"test error: {mean_squared_error(y_pred=y_test, y_true=planes_test[TARGET], squared=False)}")
-    print(f"train error: {mean_squared_error(y_pred=y_train, y_true=planes_train[TARGET], squared=False)}")
+    grid_search = RandomizedSearchCV(model,
+                                     param_grid,
+                                     cv=5,
+                                     verbose=10,
+                                     scoring='neg_root_mean_squared_error',
+                                     n_jobs=-1,
+                                     n_iter=32)
 
-    # Check the model with CrossValidation
-    scores = cross_val_score(model,
-                             planes[FEATS],
-                             planes[TARGET],
-                             scoring='neg_root_mean_squared_error',
-                             cv=5, n_jobs=-1)
-    print(np.mean(-scores))
+    grid_search.fit(planes[FEATS], planes[TARGET])
+
+    y_pred = grid_search.predict(planes_predict[FEATS])
+    final_list = pd.DataFrame({'itinerary': planes_predict['itinerary'],
+                               'Quarter': planes_predict['Quarter'],
+                               'RPCarrier': planes_predict['RPCarrier'],
+                               'FareClass': planes_predict['FareClass'],
+                               'passengers': planes_predict['passengers'],
+                               'price': y_pred
+                               })
+    final_list.to_csv(f'{target_path_1}final_list.csv', index=False)

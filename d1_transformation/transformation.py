@@ -52,7 +52,8 @@ def coupons_transformation(df_c):
     return df_c
 
 
-def join_coupons_tickets(spark, df_c, df_t):
+def join_coupons_tickets(spark, df_c, df_t, target_path_1):
+    print('lets join')
     spark.conf.set("spark.sql.crossJoin.enabled", True)
     df = df_c.join(df_t, on=['ItinID'], how='left_outer')
 
@@ -63,10 +64,17 @@ def join_coupons_tickets(spark, df_c, df_t):
     df = df.withColumn("Passengers", df["Passengers"].cast("int"))
     df = df.groupby(
         ['itinerary', 'Quarter', 'RPCarrier', 'FareClass', 'Distance', 'DistanceGroup', 'CouponGeoType']).agg(
-        sf.sum('Passengers'), sf.mean('Fare'))
+        sf.sum('Passengers'), sf.round(sf.mean('Fare'),2))
+    print(df.schema.names)
+    df = df.withColumnRenamed('round(avg(Fare), 2)', 'avg_fare')
+    df = df.withColumnRenamed('sum(Passengers)', 'passengers')
+    print(df.schema.names)
+    df = df.where('avg_fare>50.00')
+    df = df.where('avg_fare<2500.00')
+
     print('Joined!')
 
 
     df = df.toPandas()
-    df.to_csv('/home/juan/Downloads/definitive_1.csv')
+    df.to_csv(f'{target_path_1}/definitive_2.csv')
     print('Saved in a CSV!')
