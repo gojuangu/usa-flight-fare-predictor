@@ -1,12 +1,8 @@
-import pandas as pd
-import cpi
-import zipfile
-from pyspark.sql import SparkSession
 from pyspark.sql import functions as sf
 
 #Function to transform the parquet file of Tickets
 def tickets_transformation(df_t):
-
+    print('Transforming the data...')
     # let's filter just for those tickets with 2 coupons
     coupons = [2]
     df_t = df_t.filter(sf.col('Coupons').isin(coupons))
@@ -21,12 +17,12 @@ def tickets_transformation(df_t):
                        'ItinFare', 'BulkFare', 'Distance', 'DistanceGroup', 'MilesFlown', 'ItinGeoType', '_c25']
     for col in cols_to_delete:
         df_t = df_t.drop(col)
-    print('tickets transformed')
+    print('Ticket data transformed!')
     return df_t
 
 
 def coupons_transformation(df_c):
-
+    print('Now, transforming the Coupon data...')
     # let's filter just for those tickets with 2 coupons
     coupons = [2]
     df_c = df_c.filter(sf.col('Coupons').isin(coupons))
@@ -48,12 +44,12 @@ def coupons_transformation(df_c):
                       'carrier_itin_0', 'carrier_itin_1']
     for col in cols_to_delete:
         df_c = df_c.drop(col)
-    print('Coupons transformed!')
+    print('Coupon data transformed!')
     return df_c
 
 
-def join_coupons_tickets(spark, df_c, df_t, target_path_1):
-    print('lets join')
+def join_coupons_tickets(spark, df_c, df_t, path):
+    print('Preparing the transformed data for the model...')
     spark.conf.set("spark.sql.crossJoin.enabled", True)
     df = df_c.join(df_t, on=['ItinID'], how='left_outer')
 
@@ -65,16 +61,14 @@ def join_coupons_tickets(spark, df_c, df_t, target_path_1):
     df = df.groupby(
         ['itinerary', 'Quarter', 'RPCarrier', 'FareClass', 'Distance', 'DistanceGroup', 'CouponGeoType']).agg(
         sf.sum('Passengers'), sf.round(sf.mean('Fare'),2))
-    print(df.schema.names)
     df = df.withColumnRenamed('round(avg(Fare), 2)', 'avg_fare')
     df = df.withColumnRenamed('sum(Passengers)', 'passengers')
-    print(df.schema.names)
     df = df.where('avg_fare>50.00')
     df = df.where('avg_fare<2500.00')
 
-    print('Joined!')
+    print('... we are ready to model!')
 
 
     df = df.toPandas()
-    df.to_csv(f'{target_path_1}/definitive_2.csv')
-    print('Saved in a CSV!')
+    df.to_csv(f'{path}/definitive_2.csv')
+    print('Just in case, saved in a CSV!')

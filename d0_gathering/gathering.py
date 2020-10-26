@@ -7,21 +7,22 @@ from os.path import isfile, join
 from pyspark.sql import SparkSession
 
 
-# This function allows you to unzipp all the downloaded files functions
+# This function allows you to unzip all the downloaded files functions
 
-# def unzipp(path, target_path):
-#    print('descompressing')
-#    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-#    for o in onlyfiles:
-#        if o.endswith(".zip"):
-#            zip = zipfile.ZipFile(o, 'r')
-#            zip.extractall(target_path)
-#            zip.close()
-#    print('descompresed')
+def unzipp(path, downloads_path):
+    print('descompressing')
+
+    for file in os.listdir(downloads_path):
+        if file.endswith(".zip"):
+            file_name = os.path.abspath(file)
+            zip_ref = zipfile.ZipFile(file_name)
+            zip_ref.extractall(downloads_path)
+            zip_ref.close()
+    print('descompresed')
 
 # Function to create the of pySpark
 def sparkbuilder():
-    print('start 1')
+    print('Build the Spark Session')
     spark = SparkSession.builder. \
         appName('<nombre_app>'). \
         master('local[2]'). \
@@ -29,43 +30,27 @@ def sparkbuilder():
         config('spark.sql.repl.eagerEval.enabled', True). \
         config('spark.driver.memory', '4G'). \
         getOrCreate()
-    print('start 2')
+
     return spark
 
 
 # Function to read the CSV and convert them to parquet
-def spark_parquet(spark, path_t, path_c, target_path):
-    print('partq')
+def spark_parquet_ticket(spark, path_t):
+    print('gathering the data of the Tickets')
 
     df_t = spark.read.format("csv") \
         .option("header", "true") \
         .option("mode", "DROPMALFORMED") \
         .load(f'{path_t}/Origin_and_Destination_Survey_DB1BTicket*.csv')
-    df_t.write.parquet(f'{target_path}/1')
+
+    return df_t
+
+def spark_parquet_coupon(spark, path_c):
+    print('gathering the data of the Coupons')
 
     df_c = spark.read.format("csv") \
         .option("header", "true") \
         .option("mode", "DROPMALFORMED") \
         .load(f'{path_c}/Origin_and_Destination_Survey_DB1BCoupon*.csv')
-    df_c.write.parquet(f'{target_path}/2')
 
-    print('dfdfgh')
-
-
-# Function to read the parquet file
-def read_parquet_ticket(spark, path_pt):
-    print('lets read')
-    df_t = spark.read.format("parquet") \
-        .option("header", "true") \
-        .option("mode", "DROPMALFORMED") \
-        .load(path_pt)
-    return df_t
-
-def read_parquet_coupon(spark, path_pc):
-    print('lets read')
-    df_c = spark.read.format("parquet") \
-        .option("header", "true") \
-        .option("mode", "DROPMALFORMED") \
-        .load(path_pc)
-    print('finish reading')
     return df_c

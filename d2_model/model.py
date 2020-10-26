@@ -9,17 +9,18 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import RandomizedSearchCV
 
-def data_partition(target_path_1):
-    planes = pd.read_csv(f'{target_path_1}/definitive_2.csv')
+def data_partition(path):
+    planes = pd.read_csv(f'{path}/definitive_2.csv')
     planes, planes_predict = train_test_split(planes, test_size=0.2)
 
-    planes.to_csv(f'{target_path_1}/planes_train.csv')
-    planes_predict.to_csv(f'{target_path_1}/planes_predict.csv')
+    planes.to_csv(f'{path}/planes_train.csv')
+    planes_predict.to_csv(f'{path}/planes_predict.csv')
 
 
 #machine learning preprocessing
 
-def model(target_path_1):
+def model(path):
+    print('Modeling...')
     NUM_FEATS = ['Quarter', 'Distance', 'DistanceGroup', 'CouponGeoType', 'passengers']
     CAT_FEATS = ['itinerary', 'RPCarrier', 'FareClass']
     FEATS = NUM_FEATS + CAT_FEATS
@@ -39,9 +40,9 @@ def model(target_path_1):
                                         ('cat', categorical_transformer, CAT_FEATS)
                                         ])
 
-    planes = pd.read_csv(f'{target_path_1}/planes_train.csv')
+    planes = pd.read_csv(f'{path}/planes_train.csv')
     planes_train, planes_test = train_test_split(planes, test_size=0.2)
-    planes_predict = pd.read_csv(f'{target_path_1}planes_predict.csv')
+    planes_predict = pd.read_csv(f'{path}/planes_predict.csv')
 
     model = Pipeline(steps=[('preprocessor', preprocessor),
                             ('regressor', RandomForestRegressor(n_jobs=-1,
@@ -76,4 +77,4 @@ def model(target_path_1):
                                'passengers': planes_predict['passengers'],
                                'price': y_pred
                                })
-    final_list.to_csv(f'{target_path_1}final_list.csv', index=False)
+    final_list.to_csv(f'{path}/final_list.csv', index=False)

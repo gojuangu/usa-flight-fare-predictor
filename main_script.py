@@ -5,17 +5,13 @@ from d2_model import model as mod
 from d3_check import check_flight as chk
 
 
-
 def argument_parser():
     parser = argparse.ArgumentParser(description='Set path')
-    parser.add_argument('-t', "--path_t", type=str, help='specify database path', required=True)
-    parser.add_argument('-c', "--path_c", type=str, help='specify database path', required=True)
-    parser.add_argument('-p', "--target_path", type=str, help='specify where store data', required=True)
-    parser.add_argument('-p1', "--target_path_1", type=str, help='specify where to store the input data for the model'
+    parser.add_argument('-t', "--path_t", type=str, help='folder for Ticket data', required=True)
+    parser.add_argument('-c', "--path_c", type=str, help='folder for Coupon data', required=True)
+    parser.add_argument('-tp', "--downloads_path", type=str, help='specify where you have download the zipped data'
                         , required=True)
-    parser.add_argument('-1', "--path_1", type=str, help='specify the path where you want to store the parquet files'
-                        , required=True)
-    parser.add_argument('-2', "--path_2", type=str, help='specify the path where you want to store the parquet files'
+    parser.add_argument('-p', "--path", type=str, help='specify where to store the unzipped data for the model'
                         , required=True)
     args = parser.parse_args()
     return args
@@ -23,33 +19,44 @@ def argument_parser():
 
 def pipeline(arguments):
     print('========================= Pipeline is starting! =========================')
-    #dga.unzipp(arguments.path, arguments.target_path)  # unzip files
-    #spark = dga.sparkbuilder()
-    #dga.spark_parquet(spark, arguments.path_t, arguments.path_c, arguments.target_path)
-    #read_parquet_t = dga.read_parquet_ticket(spark, arguments.path_1)
-    #read_parquet_c = dga.read_parquet_coupon(spark, arguments.path_2)
-    #transform_tickets = trn.tickets_transformation(read_parquet_t)
-    #transform_coupons = trn.coupons_transformation(read_parquet_c)
-    #trn.join_coupons_tickets(spark, transform_coupons, transform_tickets, arguments.target_path_1)
-    mod.data_partition(arguments.target_path_1)
-    mod.model(arguments.target_path_1)
+    dga.unzipp(arguments.path, arguments.target_path)  # unzip files
+    spark = dga.sparkbuilder()
+    df_t = dga.spark_parquet_ticket(spark, arguments.path_t)
+    df_c = dga.spark_parquet_coupon(spark, arguments.path_c)
+    transform_tickets = trn.tickets_transformation(df_t)
+    transform_coupons = trn.coupons_transformation(df_c)
+    trn.join_coupons_tickets(spark, transform_coupons, transform_tickets, arguments.path)
+    mod.data_partition(arguments.path)
+    mod.model(arguments.path)
 
-    print('========================= Pipeline is complete! =========================')
+    print('========================= Pipeline is complete! =========================\n'
+          'Do you want to make a consultation?')
+    question_2 = (input('[y]Yes / [n]No: '))
+    if str(question_2) == 'y':
+        print('Great, please, answer the following questions:')
+        chk.check_flight(arguments.path)
+    else:
+        print('Thanks for your time :)')
+
+def consult(arguments):
+    chk.check_flight(arguments.path)
 
 
 if __name__ == '__main__':
     arguments = argument_parser()
 
-    print('Welcome to the USA Fare Flight predictor. Please select if you want to start the pipeline os just make a consult:')
-    consult = (input('[c]Consult or [p]Pipeline: '))
+    print(
+        'Welcome to the USA Fare Flight predictor. Please select if you want to start the pipeline os just make a consult:')
 
-    if consult == 'c':
-        origin = (input('Enter your origin airport code: '))
-        dest = (input('Enter your destination airport code: '))
-        quarter = (input('Enter your quarter airport code: '))
-        fare_class = (input('Enter your fare_class airport code: '))
-        print(chk.check_flight(arguments.target_path_1, origin, dest, int(quarter), fare_class))
+    while True:
+        answer = (input('[c]Consult or [p]Pipeline: '))
+        if answer.lower() not in ('p', 'c'):
+            print(f'Sorry, {answer} is not a correct choice. Please, select c or p')
+        else:
+            break
 
-    if consult == 'p':
+    if answer == 'c':
+        consult(arguments)
+
+    if answer == 'p':
         pipeline(arguments)
-
