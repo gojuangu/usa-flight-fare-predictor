@@ -9,16 +9,19 @@ from pyspark.sql import SparkSession
 
 # This function allows you to unzip all the downloaded files functions
 
-def unzipp(path, downloads_path):
-    print('descompressing')
+def unzipp(downloads_path, path):
+    print('decompressing')
 
     for file in os.listdir(downloads_path):
-        if file.endswith(".zip"):
-            file_name = os.path.abspath(file)
-            zip_ref = zipfile.ZipFile(file_name)
-            zip_ref.extractall(downloads_path)
-            zip_ref.close()
-    print('descompresed')
+        if file.endswith('.zip'):
+            file_name = (downloads_path.strip() + file.strip())
+            print(file_name)
+            with zipfile.ZipFile(file_name, 'r') as zip_ref:
+                for name in zip_ref.namelist():
+                    if name.endswith('.csv'):
+                        zip_ref.extractall(path)
+                        zip_ref.close()
+    print('decompressed')
 
 # Function to create the of pySpark
 def sparkbuilder():

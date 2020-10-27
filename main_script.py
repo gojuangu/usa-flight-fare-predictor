@@ -19,7 +19,7 @@ def argument_parser():
 
 def pipeline(arguments):
     print('========================= Pipeline is starting! =========================')
-    dga.unzipp(arguments.path, arguments.target_path)  # unzip files
+    dga.unzipp(arguments.downloads_path, arguments.path)  # unzip files
     spark = dga.sparkbuilder()
     df_t = dga.spark_parquet_ticket(spark, arguments.path_t)
     df_c = dga.spark_parquet_coupon(spark, arguments.path_c)
@@ -31,8 +31,14 @@ def pipeline(arguments):
 
     print('========================= Pipeline is complete! =========================\n'
           'Do you want to make a consultation?')
-    question_2 = (input('[y]Yes / [n]No: '))
-    if str(question_2) == 'y':
+    while True:
+        question_2 = (input('[y]Yes / [n]No: '))
+        if question_2.lower() not in ('y', 'n'):
+            print(f'Sorry, {question_2} is not a correct answer.')
+        else:
+            break
+
+    if question_2 == 'y':
         print('Great, please, answer the following questions:')
         chk.check_flight(arguments.path)
     else:
@@ -46,7 +52,7 @@ if __name__ == '__main__':
     arguments = argument_parser()
 
     print(
-        'Welcome to the USA Fare Flight predictor. Please select if you want to start the pipeline os just make a consult:')
+        'Welcome to the USA Fare Flight predictor. Please select if you want to start the pipeline os just make a consultation:')
 
     while True:
         answer = (input('[c]Consult or [p]Pipeline: '))
