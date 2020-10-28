@@ -34,22 +34,22 @@ def sparkbuilder():
 
 
 # Function to read the CSV and convert them to parquet
-def spark_parquet_ticket(spark, path_t):
+def spark_parquet_ticket(spark, path):
     print('gathering the data of the Tickets')
 
     df_t = spark.read.format("csv") \
         .option("header", "true") \
         .option("mode", "DROPMALFORMED") \
-        .load(f'{path_t}/Origin_and_Destination_Survey_DB1BTicket*.csv')
+        .load(f'{path}/Origin_and_Destination_Survey_DB1BTicket*.csv')
 
     return df_t
 
-def spark_parquet_coupon(spark, path_c):
+def spark_parquet_coupon(spark, path):
     print('gathering the data of the Coupons')
 
     df_c = spark.read.format("csv") \
         .option("header", "true") \
         .option("mode", "DROPMALFORMED") \
-        .load(f'{path_c}/Origin_and_Destination_Survey_DB1BCoupon*.csv')
+        .load(f'{path}/Origin_and_Destination_Survey_DB1BCoupon*.csv')
 
     return df_c
