@@ -16,14 +16,14 @@ def argument_parser():
     args = parser.parse_args()
     return args
 
-
+# Expect around 30 minutes to run all the pipeline, recommended only to run the first time
 def pipeline(arguments):
     print('========================= Pipeline is starting! =========================')
     dga.unzipp(arguments.downloads_path, arguments.path)  # unzip files
-    spark = dga.sparkbuilder()
-    df_t = dga.spark_parquet_ticket(spark, arguments.path_t)
+    spark = dga.sparkbuilder()  # build the Spark Session
+    df_t = dga.spark_parquet_ticket(spark, arguments.path_t)  # gather all info converting it to parquet
     df_c = dga.spark_parquet_coupon(spark, arguments.path_c)
-    transform_tickets = trn.tickets_transformation(df_t)
+    transform_tickets = trn.tickets_transformation(df_t)  # transform all info ready to model it
     transform_coupons = trn.coupons_transformation(df_c)
     trn.join_coupons_tickets(spark, transform_coupons, transform_tickets, arguments.path)
     mod.data_partition(arguments.path)
